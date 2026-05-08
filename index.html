@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS 분류 시스템 - 벨콤</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyALB3tG-5C8bSvRqx_oMRcmlUEDMJ7Q3O4",
+      authDomain: "belcom-cs.firebaseapp.com",
+      projectId: "belcom-cs",
+      storageBucket: "belcom-cs.firebasestorage.app",
+      messagingSenderId: "229332064533",
+      appId: "1:229332064533:web:3b9ac690f231ad11f7311c",
+      measurementId: "G-2HCMFL7S0Z"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: #f0f2f7;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #0f2d78, #2255d4);
+      color: #fff;
+      padding: 18px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 3px 12px rgba(0,0,0,.2);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header .title-wrap h1 { font-size: 20px; font-weight: 700; letter-spacing: -.4px; }
+    header .title-wrap p  { font-size: 12px; opacity: .65; margin-top: 3px; }
+    header .header-right { display: flex; gap: 10px; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; transition: all .18s; white-space: nowrap;
+    }
+    .btn-white   { background: #fff; color: #0f2d78; }
+    .btn-white:hover { background: #e8eeff; }
+    .btn-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+    .btn-outline:hover { background: rgba(255,255,255,.12); }
+    .btn-primary { background: #0f2d78; color: #fff; }
+    .btn-primary:hover { background: #0c2460; }
+    .btn-green   { background: #16a34a; color: #fff; }
+    .btn-green:hover { background: #148040; }
+    .btn-red     { background: #dc2626; color: #fff; }
+    .btn-red:hover { background: #b91c1c; }
+
+    /* ── Main layout ── */
+    .main { max-width: 1280px; margin: 0 auto; padding: 28px 20px; }
+
+    /* ── Brand tabs ── */
+    .brand-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .brand-tab {
+      padding: 10px 28px; border-radius: 30px; cursor: pointer; font-size: 14px;
+      font-weight: 700; background: #fff; border: 2px solid #dde2ee;
+      transition: all .18s; user-select: none;
+    }
+    .brand-tab:hover:not(.active) { border-color: #2255d4; color: #2255d4; }
+    .brand-tab.active { background: #0f2d78; color: #fff; border-color: #0f2d78; }
+    .brand-tab.tab-hanil.active  { background: #0f2d78; border-color: #0f2d78; }
+    .brand-tab.tab-styliss.active { background: #7c1fa8; border-color: #7c1fa8; }
+
+    /* ── Panels ── */
+    .card {
+      background: #fff; border-radius: 14px; padding: 22px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 18px;
+    }
+
+    /* ── Upload area ── */
+    .upload-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .upload-drop {
+      flex: 1; min-width: 260px; border: 2.5px dashed #c5cde6; border-radius: 10px;
+      padding: 22px; text-align: center; cursor: pointer; transition: all .2s;
+    }
+    .upload-drop:hover, .upload-drop.drag-over { border-color: #2255d4; background: #f0f4ff; }
+    .upload-drop input[type=file] { display: none; }
+    .upload-drop .up-icon { font-size: 30px; margin-bottom: 6px; }
+    .upload-drop .up-main { font-size: 14px; font-weight: 600; color: #333; }
+    .upload-drop .up-sub  { font-size: 12px; color: #888; margin-top: 4px; }
+    .upload-meta { font-size: 13px; color: #555; display: flex; align-items: center; gap: 6px; }
+    .upload-meta .dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
+
+    /* ── Filters ── */
+    .filter-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .search-wrap { flex: 1; min-width: 220px; position: relative; }
+    .search-wrap input {
+      width: 100%; padding: 10px 16px 10px 42px; border: 2px solid #dde2ee;
+      border-radius: 9px; font-size: 14px; outline: none; transition: border-color .18s;
+    }
+    .search-wrap input:focus { border-color: #2255d4; }
+    .search-wrap .s-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #aaa; }
+    .search-wrap .s-clear {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      cursor: pointer; font-size: 16px; color: #aaa; display: none;
+    }
+    .search-wrap input:not(:placeholder-shown) + .s-icon ~ .s-clear { display: block; }
+    select.filter-select {
+      padding: 10px 36px 10px 14px; border: 2px solid #dde2ee; border-radius: 9px;
+      font-size: 14px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+      appearance: none; cursor: pointer; outline: none; min-width: 160px;
+    }
+    select.filter-select:focus { border-color: #2255d4; }
+
+    /* ── Stats row ── */
+    .stats-row { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+    .stat-box {
+      background: #fff; border-radius: 12px; padding: 16px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06); flex: 1; min-width: 140px;
+      border-top: 3px solid #2255d4;
+    }
+    .stat-box.brand-hanil  { border-top-color: #0f2d78; }
+    .stat-box.brand-styliss { border-top-color: #7c1fa8; }
+    .stat-box .stat-num  { font-size: 28px; font-weight: 800; color: #111; }
+    .stat-box .stat-label { font-size: 12px; color: #777; margin-top: 2px; }
+
+    /* ── Results header ── */
+    .results-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .results-title { font-size: 15px; font-weight: 700; color: #222; }
+    .results-count { font-size: 13px; color: #888; }
+
+    /* ── CS Cards ── */
+    .cs-card {
+      background: #fff; border-radius: 12px; padding: 18px 20px;
+      margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      border-left: 4px solid #2255d4; transition: transform .15s, box-shadow .15s;
+      cursor: default;
+    }
+    .cs-card:hover { transform: translateX(3px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+    .cs-card.brand-hanil   { border-left-color: #0f2d78; }
+    .cs-card.brand-styliss { border-left-color: #7c1fa8; }
+
+    .cs-meta { display: flex; gap: 7px; margin-bottom: 11px; flex-wrap: wrap; align-items: center; }
+    .badge {
+      padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .badge-hanil   { background: #e8eeff; color: #0f2d78; }
+    .badge-styliss { background: #f5e8ff; color: #7c1fa8; }
+    .badge-product { background: #f0f2f7; color: #555; }
+    .badge-category { background: #fff3e0; color: #b45309; }
+
+    .cs-q { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; line-height: 1.5; }
+    .cs-q mark { background: #fff176; border-radius: 3px; padding: 0 2px; }
+    .cs-a {
+      font-size: 13.5px; color: #444; line-height: 1.75;
+      background: #f8f9fb; padding: 12px 14px; border-radius: 8px;
+      white-space: pre-wrap;
+    }
+    .cs-a mark { background: #fff176; border-radius: 3px; padding: 0 2px; }
+
+    /* ── Empty / loading states ── */
+    .empty-state { text-align: center; padding: 70px 20px; color: #bbb; }
+    .empty-state .e-icon { font-size: 52px; margin-bottom: 14px; }
+    .empty-state p { font-size: 15px; }
+
+    /* ── Format guide ── */
+    .format-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+    .format-table th { background: #f0f2f7; padding: 9px 14px; text-align: left; font-weight: 700; border: 1px solid #e0e4ee; }
+    .format-table td { padding: 9px 14px; border: 1px solid #e0e4ee; color: #555; }
+    .format-table tr:hover td { background: #fafbff; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: #1a1a2e; color: #fff; padding: 13px 24px; border-radius: 10px;
+      font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .3s;
+      pointer-events: none; z-index: 999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── Accordion for format guide ── */
+    .guide-toggle {
+      cursor: pointer; font-size: 13px; color: #2255d4; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px;
+      background: none; border: none; padding: 0;
+    }
+    .guide-body { display: none; }
+    .guide-body.open { display: block; }
+
+    @media (max-width: 600px) {
+      header { padding: 14px 16px; }
+      .main  { padding: 16px 12px; }
+      .brand-tab { padding: 8px 16px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="title-wrap">
+    <h1>CS 분류 시스템 - 벨콤</h1>
+    <p>Customer Service Classification System</p>
+  </div>
+  <div class="header-right">
+    <div id="sync-status" style="font-size:12px; color:rgba(255,255,255,0.7); display:flex; align-items:center; gap:6px;">
+      <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;display:inline-block;"></span>
+      <span id="sync-text">연결 중...</span>
+    </div>
+    <button class="btn btn-outline" onclick="downloadTemplate()">📥 템플릿 다운로드</button>
+    <button class="btn btn-white"   onclick="clearAllData()">🗑 데이터 초기화</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Brand tabs -->
+  <div class="brand-tabs">
+    <div class="brand-tab active"        data-brand="전체"    onclick="setBrand(this)">전체</div>
+    <div class="brand-tab tab-hanil"     data-brand="한일"    onclick="setBrand(this)">한일</div>
+    <div class="brand-tab tab-styliss"   data-brand="스타일리스" onclick="setBrand(this)">스타일리스</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-label">전체 CS 항목</div>
+    </div>
+    <div class="stat-box brand-hanil">
+      <div class="stat-num" id="stat-hanil">0</div>
+      <div class="stat-label">한일 항목</div>
+    </div>
+    <div class="stat-box brand-styliss">
+      <div class="stat-num" id="stat-styliss">0</div>
+      <div class="stat-label">스타일리스 항목</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-result">0</div>
+      <div class="stat-label">검색 결과</div>
+    </div>
+  </div>
+
+  <!-- Upload section -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div style="font-size:15px; font-weight:700;">📂 엑셀 데이터 업로드</div>
+      <button class="guide-toggle" onclick="toggleGuide()">
+        <span id="guide-arrow">▶</span> 엑셀 형식 안내
+      </button>
+    </div>
+
+    <div class="guide-body" id="guide-body">
+      <p style="font-size:13px; color:#555; margin-bottom:8px;">
+        아래 컬럼 순서로 작성된 <strong>.xlsx / .xls</strong> 파일을 업로드하세요. (1행: 헤더)
+      </p>
+      <table class="format-table">
+        <tr><th>A열</th><th>B열</th><th>C열</th><th>D열</th><th>E열 (선택)</th></tr>
+        <tr>
+          <td>브랜드<br><small style="color:#999">한일 / 스타일리스</small></td>
+          <td>제품명<br><small style="color:#999">예: 선풍기, 드라이기</small></td>
+          <td>문의내용<br><small style="color:#999">CS 질문 텍스트</small></td>
+          <td>답변<br><small style="color:#999">CS 답변 텍스트</small></td>
+          <td>카테고리<br><small style="color:#999">예: 환불, AS, 배송</small></td>
+        </tr>
+      </table>
+      <p style="font-size:12px; color:#aaa; margin-top:8px;">
+        * 헤더명이 정확히 일치하지 않아도 A~E열 순서로 인식합니다.
+      </p>
+    </div>
+
+    <div class="upload-row">
+      <label class="upload-drop" id="drop-zone">
+        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])" />
+        <div class="up-icon">📊</div>
+        <div class="up-main">클릭하거나 파일을 드래그하세요</div>
+        <div class="up-sub">.xlsx / .xls 파일 지원</div>
+      </label>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="upload-meta" id="upload-status">
+          <span style="color:#aaa; font-size:13px;">업로드된 파일 없음</span>
+        </div>
+        <button class="btn btn-green" onclick="document.getElementById('file-input').click()">파일 선택</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter / Search -->
+  <div class="card">
+    <div class="filter-row">
+      <div class="search-wrap">
+        <span class="s-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="문의 내용 키워드 검색..."
+               oninput="applyFilters()" />
+        <span class="s-clear" onclick="clearSearch()">✕</span>
+      </div>
+      <select class="filter-select" id="product-select" onchange="applyFilters()">
+        <option value="전체">전체 제품</option>
+      </select>
+      <select class="filter-select" id="category-select" onchange="applyFilters()">
+        <option value="전체">전체 카테고리</option>
+      </select>
+      <button class="btn btn-primary" onclick="applyFilters()">검색</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-header">
+    <div class="results-title" id="results-title">CS 목록</div>
+    <div class="results-count" id="results-count"></div>
+  </div>
+  <div id="results-list">
+    <div class="empty-state">
+      <div class="e-icon">📋</div>
+      <p>엑셀 파일을 업로드하거나 키워드를 검색하세요.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let allData     = [];
+  let activeBrand = '전체';
+
+  /* ── Firebase 연결 상태 표시 ── */
+  function setSyncStatus(state) {
+    const dot  = document.getElementById('sync-dot');
+    const text = document.getElementById('sync-text');
+    if (state === 'ok')      { dot.style.background = '#4ade80'; text.textContent = '실시간 연결됨'; }
+    else if (state === 'loading') { dot.style.background = '#facc15'; text.textContent = '데이터 로딩 중...'; }
+    else if (state === 'saving')  { dot.style.background = '#facc15'; text.textContent = '저장 중...'; }
+    else                     { dot.style.background = '#f87171'; text.textContent = '연결 오류'; }
+  }
+
+  /* ── Firebase에서 실시간 데이터 수신 ── */
+  function initFirestoreListener() {
+    setSyncStatus('loading');
+    db.collection('cs_data').doc('all_items')
+      .onSnapshot(doc => {
+        if (doc.exists) {
+          allData = doc.data().items || [];
+        } else {
+          allData = [];
+        }
+        updateStats();
+        refreshProductSelect();
+        refreshCategorySelect();
+        applyFilters();
+        const uploadedAt = doc.exists && doc.data().uploadedAt ? doc.data().uploadedAt : null;
+        if (uploadedAt) {
+          const d = new Date(uploadedAt);
+          const label = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} 업로드`;
+          document.getElementById('upload-status').innerHTML =
+            `<span class="dot"></span> <strong>${doc.data().fileName || '공유 데이터'}</strong> — ${allData.length}건 (${label})`;
+        } else if (allData.length === 0) {
+          document.getElementById('upload-status').innerHTML =
+            '<span style="color:#aaa; font-size:13px;">업로드된 파일 없음</span>';
+        }
+        setSyncStatus('ok');
+      }, err => {
+        console.error(err);
+        setSyncStatus('error');
+        showToast('❌ Firebase 연결에 실패했습니다.');
+      });
+  }
+
+  /* ── 브랜드 탭 ── */
+  function setBrand(el) {
+    document.querySelectorAll('.brand-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    activeBrand = el.dataset.brand;
+    refreshProductSelect();
+    refreshCategorySelect();
+    applyFilters();
+  }
+
+  /* ── 가이드 토글 ── */
+  function toggleGuide() {
+    const body  = document.getElementById('guide-body');
+    const arrow = document.getElementById('guide-arrow');
+    body.classList.toggle('open');
+    arrow.textContent = body.classList.contains('open') ? '▼' : '▶';
+  }
+
+  /* ── 파일 드래그앤드롭 ── */
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  /* ── 엑셀 파싱 + Firebase 저장 ── */
+  function handleFile(file) {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx','xls'].includes(ext)) { showToast('❌ .xlsx 또는 .xls 파일만 지원합니다.'); return; }
+
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const wb   = XLSX.read(e.target.result, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        if (rows.length < 2) { showToast('❌ 데이터가 없습니다.'); return; }
+
+        const parsed = [];
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const brand    = String(r[0] || '').trim();
+          const product  = String(r[1] || '').trim();
+          const question = String(r[2] || '').trim();
+          const answer   = String(r[3] || '').trim();
+          const category = String(r[4] || '').trim();
+          if (!brand && !question) continue;
+          parsed.push({ brand, product, question, answer, category });
+        }
+
+        setSyncStatus('saving');
+        showToast('☁️ Firebase에 저장 중...');
+
+        await db.collection('cs_data').doc('all_items').set({
+          items: parsed,
+          fileName: file.name,
+          uploadedAt: new Date().toISOString(),
+        });
+
+        showToast(`✅ ${parsed.length}건이 저장되어 모든 사용자에게 공유됩니다!`, 3500);
+      } catch (err) {
+        setSyncStatus('error');
+        showToast('❌ 파일을 읽거나 저장하는 중 오류가 발생했습니다.');
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* ── 제품 셀렉트 갱신 ── */
+  function refreshProductSelect() {
+    const sel = document.getElementById('product-select');
+    const cur = sel.value;
+    const source = activeBrand === '전체' ? allData : allData.filter(d => d.brand === activeBrand);
+    const products = [...new Set(source.map(d => d.product).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="전체">전체 제품</option>';
+    products.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      if (p === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  /* ── 카테고리 셀렉트 갱신 ── */
+  function refreshCategorySelect() {
+    const sel = document.getElementById('category-select');
+    const cur = sel.value;
+    const source = activeBrand === '전체' ? allData : allData.filter(d => d.brand === activeBrand);
+    const cats = [...new Set(source.map(d => d.category).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="전체">전체 카테고리</option>';
+    cats.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      if (c === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  /* ── 통계 갱신 ── */
+  function updateStats() {
+    document.getElementById('stat-total').textContent   = allData.length;
+    document.getElementById('stat-hanil').textContent   = allData.filter(d => d.brand === '한일').length;
+    document.getElementById('stat-styliss').textContent = allData.filter(d => d.brand === '스타일리스').length;
+  }
+
+  /* ── 필터 적용 & 렌더 ── */
+  function applyFilters() {
+    const keyword  = document.getElementById('search-input').value.trim();
+    const product  = document.getElementById('product-select').value;
+    const category = document.getElementById('category-select').value;
+    const kw       = keyword.toLowerCase();
+
+    const filtered = allData.filter(d => {
+      if (activeBrand !== '전체' && d.brand !== activeBrand) return false;
+      if (product     !== '전체' && d.product   !== product)  return false;
+      if (category    !== '전체' && d.category  !== category) return false;
+      if (kw && !d.question.toLowerCase().includes(kw) && !d.answer.toLowerCase().includes(kw)) return false;
+      return true;
+    });
+
+    document.getElementById('stat-result').textContent = filtered.length;
+    renderResults(filtered, keyword);
+
+    const brandLabel = activeBrand === '전체' ? '전체' : activeBrand;
+    document.getElementById('results-title').textContent =
+      `${brandLabel} CS 목록` + (product !== '전체' ? ` · ${product}` : '') + (category !== '전체' ? ` · ${category}` : '');
+    document.getElementById('results-count').textContent =
+      filtered.length > 0 ? `총 ${filtered.length}건` : '';
+  }
+
+  function renderResults(data, keyword) {
+    const list = document.getElementById('results-list');
+    if (!data || data.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="e-icon">${allData.length === 0 ? '📋' : '🔍'}</div><p>${allData.length === 0 ? '엑셀 파일을 업로드하세요.' : '검색 결과가 없습니다.'}</p></div>`;
+      return;
+    }
+    const kw = (keyword || '').toLowerCase();
+    list.innerHTML = data.map(d => {
+      const brandClass = d.brand === '한일' ? 'brand-hanil' : d.brand === '스타일리스' ? 'brand-styliss' : '';
+      const badgeClass = d.brand === '한일' ? 'badge-hanil' : d.brand === '스타일리스' ? 'badge-styliss' : 'badge-product';
+      const q = kw ? highlight(escHtml(d.question), kw) : escHtml(d.question);
+      const a = kw ? highlight(escHtml(d.answer),   kw) : escHtml(d.answer);
+      return `
+        <div class="cs-card ${brandClass}">
+          <div class="cs-meta">
+            ${d.brand    ? `<span class="badge ${badgeClass}">${escHtml(d.brand)}</span>` : ''}
+            ${d.product  ? `<span class="badge badge-product">${escHtml(d.product)}</span>` : ''}
+            ${d.category ? `<span class="badge badge-category">${escHtml(d.category)}</span>` : ''}
+          </div>
+          <div class="cs-q">${q || '<span style="color:#bbb">문의내용 없음</span>'}</div>
+          <div class="cs-a">${a || '<span style="color:#bbb">답변 없음</span>'}</div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── 검색어 하이라이트 ── */
+  function highlight(text, kw) {
+    if (!kw) return text;
+    const re = new RegExp(escRe(kw), 'gi');
+    return text.replace(re, m => `<mark>${m}</mark>`);
+  }
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escRe(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /* ── 검색 초기화 ── */
+  function clearSearch() {
+    document.getElementById('search-input').value = '';
+    applyFilters();
+  }
+
+  /* ── 데이터 초기화 (Firebase도 삭제) ── */
+  async function clearAllData() {
+    if (allData.length === 0) { showToast('초기화할 데이터가 없습니다.'); return; }
+    if (!confirm('모든 데이터를 초기화하시겠습니까?\n⚠️ Firebase에서도 삭제되어 모든 사용자에게 반영됩니다.')) return;
+    try {
+      await db.collection('cs_data').doc('all_items').delete();
+      document.getElementById('file-input').value = '';
+      showToast('🗑 데이터가 초기화되었습니다.');
+    } catch (err) {
+      showToast('❌ 초기화 중 오류가 발생했습니다.');
+      console.error(err);
+    }
+  }
+
+  /* ── 템플릿 다운로드 ── */
+  function downloadTemplate() {
+    const wb = XLSX.utils.book_new();
+    const sampleData = [
+      ['브랜드', '제품명', '문의내용', '답변', '카테고리'],
+      ['한일', '선풍기', '선풍기 날개가 돌아가지 않아요.', '전원 버튼을 길게 눌러 리셋한 뒤 다시 켜보세요. 증상이 지속되면 AS 접수 부탁드립니다.', 'AS'],
+      ['한일', '선풍기', '리모컨 배터리를 교체했는데도 작동이 안 돼요.', '리모컨 수신부(본체 상단)를 향해 1m 이내에서 조작해 보세요.', '사용법'],
+      ['한일', '온풍기', '냄새가 나요.', '첫 사용 시 내부 이물질 연소로 냄새가 날 수 있으나 30분 내 사라집니다.', '품질'],
+      ['스타일리스', '드라이기', '드라이기 열풍이 약해졌어요.', '필터 먼지 제거 후 사용해 주세요. 필터는 제품 뒷면에 위치합니다.', '사용법'],
+      ['스타일리스', '고데기', '전원이 켜지지 않아요.', '전원 코드가 완전히 연결됐는지 확인 후, 콘센트를 교체해 테스트해 보세요.', 'AS'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sampleData);
+    ws['!cols'] = [{wch:12},{wch:12},{wch:35},{wch:50},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, 'CS데이터');
+    XLSX.writeFile(wb, 'CS_데이터_템플릿.xlsx');
+    showToast('📥 템플릿이 다운로드되었습니다.');
+  }
+
+  /* ── 토스트 ── */
+  function showToast(msg, duration = 2800) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  /* ── 초기화: Firebase 리스너 시작 ── */
+  initFirestoreListener();
+</script>
+</body>
+</html>
